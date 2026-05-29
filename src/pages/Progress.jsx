@@ -1,13 +1,28 @@
 import React, { useState } from 'react';
-import { motion } from 'framer-motion';
-import { Trophy, TrendingUp, Scale, Activity, Ruler } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { Trophy, Scale, Activity, ChevronLeft } from 'lucide-react';
 import { useApp } from '../lib/useAppStore';
-import { getAllExercises } from '../lib/exercises';
-import { calculate1RM } from '../lib/exercises';
+import { getAllExercises, calculate1RM } from '../lib/exercises';
 import {
-  LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip,
+  XAxis, YAxis, CartesianGrid, Tooltip,
   ResponsiveContainer, Area, AreaChart,
 } from 'recharts';
+
+const CHART_COLORS = { primary: '#3A5BF0', purple: '#8B5CF6', teal: '#14b8a6' };
+
+const CustomTooltip = ({ active, payload, label }) => {
+  if (!active || !payload?.length) return null;
+  return (
+    <div className="bg-card border border-border rounded-xl px-3 py-2 shadow-lg">
+      <p className="text-xs text-muted-foreground mb-1">{label}</p>
+      {payload.map((p, i) => (
+        <p key={i} className="text-sm font-bold" style={{ color: p.color }}>
+          {p.name}: {p.value}{(p.name.includes('1RM') || p.name === 'weight') ? 'kg' : (p.name === 'height' ? 'cm' : '')}
+        </p>
+      ))}
+    </div>
+  );
+};
 
 export default function Progress() {
   const { workoutHistory, prHistory, measurements, addBodyMeasurement, customExercises } = useApp();
@@ -26,32 +41,42 @@ export default function Progress() {
       return raw ? JSON.parse(raw) : [];
     } catch { return []; }
   })();
-  const sortedLogs = dailyLogs.sort((a, b) => new Date(a.date) - new Date(b.date)).slice(-30);
-  const weightData = sortedLogs
-    .filter(l => l.weight)
-    .map(l => ({ date: new Date(l.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }), weight: l.weight }));
-  const heightData = sortedLogs
-    .filter(l => l.height)
-    .map(l => ({ date: new Date(l.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }), height: l.height }));
+  const sortedLogs = [...dailyLogs].sort((a, b) => new Date(a.date) - new Date(b.date)).slice(-30);
+  const weightData = sortedLogs.filter(l => l.weight).map(l => ({
+    date: new Date(l.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+    weight: l.weight,
+  }));
+  const heightData = sortedLogs.filter(l => l.height).map(l => ({
+    date: new Date(l.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+    height: l.height,
+  }));
 
-  // Exercise strength data
-  const exerciseData = selectedExercise ? workoutHistory
-    .filter(w => w.exercises?.some(e => e.exerciseId === selectedExercise))
-    .sort((a, b) => new Date(a.completedAt) - new Date(b.completedAt))
-    .map(w => {
-      const ex = w.exercises.find(e => e.exerciseId === selectedExercise);
-      const bestSet = ex?.sets?.filter(s => s.completed && s.weight && s.reps)
-        .reduce((best, s) => {
-          const est = calculate1RM(parseFloat(s.weight), parseInt(s.reps));
-          return !best || est > calculate1RM(parseFloat(best.weight), parseInt(best.reps)) ? s : best;
-        }, null);
-      if (!bestSet) return null;
-      return {
-        date: new Date(w.completedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
-        '1RM': calculate1RM(parseFloat(bestSet.weight), parseInt(bestSet.reps)),
-        weight: parseFloat(bestSet.weight),
-      };
-    }).filter(Boolean) : [];
+  // Exercise strength data — build from ALL workout history for the selected exercise
+  const exerciseData = selectedExercise
+    ? workoutHistory
+        .filter(w => w.exercises?.some(e => e.exerciseId === selectedExercise))
+        .sort((a, b) => new Date(a.completedAt) - new Date(b.completedAt))
+        .map(w => {
+          const ex = w.exercises.find(e => e.exerciseId === selectedExercise);
+          const bestSet = ex?.sets
+            ?.filter(s => s.completed && s.reps)
+            .reduce((best, s) => {
+              const est = calculate1RM(parseFloat(s.weight || 0), parseInt(s.reps), ex.exerciseId);
+              const bestEst = best ? calculate1RM(parseFloat(best.weight || 0), parseInt(best.reps), ex.exerciseId) : 0;
+              return est > bestEst ? s : best;
+            }, null);
+          if (!bestSet) return null;
+          const w_ = parseFloat(bestSet.weight || 0);
+          const r = parseInt(bestSet.reps);
+          return {
+            date: new Date(w.completedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+            '1RM': calculate1RM(w_, r, ex.exerciseId),
+            weight: w_,
+            reps: r,
+          };
+        })
+        .filter(Boolean)
+    : [];
 
   const tabList = [
     { id: 'strength', label: 'Strength', icon: Trophy },
@@ -61,23 +86,8 @@ export default function Progress() {
 
   const prList = Object.entries(prHistory).map(([id, pr]) => ({ id, ...pr }));
 
-  const CHART_COLORS = {
-    primary: '#3A5BF0',
-    rose: '#FF6B6B',
-    amber: '#F59E0B',
-  };
-
-  const CustomTooltip = ({ active, payload, label }) => {
-    if (!active || !payload?.length) return null;
-    return (
-      <div className="bg-card border border-border rounded-xl px-3 py-2 shadow-lg">
-        <p className="text-xs text-muted-foreground mb-1">{label}</p>
-        {payload.map((p, i) => (
-          <p key={i} className="text-sm font-bold" style={{ color: p.color }}>{p.name}: {p.value}{p.name.includes('1RM') || p.name === 'weight' ? 'kg' : ''}</p>
-        ))}
-      </div>
-    );
-  };
+  const totalVolume = workoutHistory.reduce((s, w) => s + (w.totalVolume || 0), 0);
+  const totalVolumeT = (totalVolume / 1000).toFixed(2);
 
   return (
     <div className="min-h-full bg-background pb-4">
@@ -103,81 +113,110 @@ export default function Progress() {
       <div className="px-5 space-y-4">
         {activeTab === 'strength' && (
           <>
-            {/* Exercise selector */}
-            {prExercises.length > 0 && (
+            {/* If an exercise is selected, show its detail view */}
+            {selectedExercise ? (
               <div>
-                <label className="text-sm font-medium text-muted-foreground mb-2 block">Select Exercise</label>
-                <select
-                  value={selectedExercise || ''}
-                  onChange={e => setSelectedExercise(e.target.value || null)}
-                  className="w-full bg-card border border-border rounded-xl px-4 py-3 text-foreground focus:outline-none"
+                <button
+                  onClick={() => setSelectedExercise(null)}
+                  className="flex items-center gap-1.5 text-primary text-sm font-semibold mb-4 tap-scale"
                 >
-                  <option value="">Choose an exercise...</option>
-                  {prExercises.map(id => (
-                    <option key={id} value={id}>{prHistory[id].exerciseName}</option>
-                  ))}
-                </select>
-              </div>
-            )}
+                  <ChevronLeft size={16} /> All Records
+                </button>
 
-            {/* Chart */}
-            {selectedExercise && exerciseData.length > 1 && (
-              <div className="bg-card border border-border rounded-2xl p-4">
-                <h3 className="font-bold text-foreground mb-1">Estimated 1RM Progress</h3>
-                <p className="text-xs text-muted-foreground mb-3">{prHistory[selectedExercise]?.exerciseName}</p>
-                <ResponsiveContainer width="100%" height={180}>
-                  <AreaChart data={exerciseData}>
-                    <defs>
-                      <linearGradient id="colorPrimary" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor={CHART_COLORS.primary} stopOpacity={0.2} />
-                        <stop offset="95%" stopColor={CHART_COLORS.primary} stopOpacity={0} />
-                      </linearGradient>
-                    </defs>
-                    <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-                    <XAxis dataKey="date" tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }} />
-                    <YAxis tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }} />
-                    <Tooltip content={<CustomTooltip />} />
-                    <Area type="monotone" dataKey="1RM" stroke={CHART_COLORS.primary} fill="url(#colorPrimary)" strokeWidth={2.5} dot={{ r: 4, fill: CHART_COLORS.primary }} />
-                  </AreaChart>
-                </ResponsiveContainer>
-              </div>
-            )}
+                <div className="bg-card border border-border rounded-2xl p-4 mb-4">
+                  <h3 className="font-bold text-foreground mb-0.5">
+                    {prHistory[selectedExercise]?.exerciseName}
+                  </h3>
+                  <p className="text-xs text-muted-foreground mb-3">Estimated 1RM progress over time</p>
 
-            {/* PR list */}
-            <div>
-              <h2 className="font-bold text-foreground mb-3">Personal Records 🏆</h2>
-              {prList.length === 0 ? (
-                <div className="bg-card border border-border rounded-2xl p-6 text-center">
-                  <Trophy className="mx-auto mb-2 text-muted-foreground" size={32} />
-                  <p className="text-muted-foreground text-sm">No PRs yet — start logging workouts!</p>
+                  {exerciseData.length > 0 ? (
+                    <ResponsiveContainer width="100%" height={200}>
+                      <AreaChart data={exerciseData}>
+                        <defs>
+                          <linearGradient id="colorPrimary" x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="5%" stopColor={CHART_COLORS.primary} stopOpacity={0.2} />
+                            <stop offset="95%" stopColor={CHART_COLORS.primary} stopOpacity={0} />
+                          </linearGradient>
+                        </defs>
+                        <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                        <XAxis dataKey="date" tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }} />
+                        <YAxis tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }} domain={['auto', 'auto']} />
+                        <Tooltip content={<CustomTooltip />} />
+                        <Area type="monotone" dataKey="1RM" stroke={CHART_COLORS.primary} fill="url(#colorPrimary)" strokeWidth={2.5} dot={{ r: 4, fill: CHART_COLORS.primary }} />
+                      </AreaChart>
+                    </ResponsiveContainer>
+                  ) : (
+                    <p className="text-center text-muted-foreground text-sm py-6">No sets logged yet for this exercise.</p>
+                  )}
                 </div>
-              ) : (
+
+                {/* Session history for this exercise */}
+                <h3 className="font-bold text-foreground mb-2">Session History</h3>
                 <div className="bg-card border border-border rounded-2xl overflow-hidden">
-                  {prList.map((pr, i) => (
-                    <div key={pr.id} className={`flex items-center gap-3 px-4 py-3.5 ${i !== prList.length - 1 ? 'border-b border-border' : ''}`}>
-                      <div className="w-9 h-9 bg-amber-100 dark:bg-amber-900/30 rounded-xl flex items-center justify-center flex-shrink-0">
-                        <Trophy size={16} className="text-amber-500" />
+                  {exerciseData.length === 0 ? (
+                    <p className="text-center text-muted-foreground text-sm py-6">No data yet.</p>
+                  ) : (
+                    [...exerciseData].reverse().map((d, i) => (
+                      <div key={i} className={`flex items-center justify-between px-4 py-3 ${i !== exerciseData.length - 1 ? 'border-b border-border' : ''}`}>
+                        <p className="text-sm text-muted-foreground">{d.date}</p>
+                        <p className="text-sm font-semibold text-foreground">
+                          {d.weight > 0 ? `${d.weight} kg × ${d.reps}` : `${d.reps} reps`}
+                        </p>
+                        <p className="text-xs text-primary font-bold">
+                          {d.weight > 0 ? `1RM: ${d['1RM']}kg` : `Score: ${d['1RM']}`}
+                        </p>
                       </div>
-                      <div className="flex-1">
-                        <p className="font-semibold text-foreground text-sm">{pr.exerciseName}</p>
-                        <p className="text-xs text-muted-foreground">{new Date(pr.date).toLocaleDateString()}</p>
-                      </div>
-                      <div className="text-right">
-                        <p className="font-bold text-foreground text-sm">{pr.weight}kg × {pr.reps}</p>
-                        <p className="text-xs text-primary">1RM: {pr.estimated1RM}kg</p>
-                      </div>
-                    </div>
-                  ))}
+                    ))
+                  )}
                 </div>
-              )}
-            </div>
+              </div>
+            ) : (
+              <>
+                {/* PR list — tap to drill in */}
+                <div>
+                  <h2 className="font-bold text-foreground mb-1">Personal Records 🏆</h2>
+                  <p className="text-xs text-muted-foreground mb-3">Tap a record to see progress chart</p>
+                  {prList.length === 0 ? (
+                    <div className="bg-card border border-border rounded-2xl p-6 text-center">
+                      <Trophy className="mx-auto mb-2 text-muted-foreground" size={32} />
+                      <p className="text-muted-foreground text-sm">No PRs yet — start logging workouts!</p>
+                    </div>
+                  ) : (
+                    <div className="bg-card border border-border rounded-2xl overflow-hidden">
+                      {prList.map((pr, i) => (
+                        <button
+                          key={pr.id}
+                          onClick={() => setSelectedExercise(pr.id)}
+                          className={`w-full flex items-center gap-3 px-4 py-3.5 tap-scale text-left ${i !== prList.length - 1 ? 'border-b border-border' : ''}`}
+                        >
+                          <div className="w-9 h-9 bg-amber-100 dark:bg-amber-900/30 rounded-xl flex items-center justify-center flex-shrink-0">
+                            <Trophy size={16} className="text-amber-500" />
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="font-semibold text-foreground text-sm truncate">{pr.exerciseName}</p>
+                            <p className="text-xs text-muted-foreground">{new Date(pr.date).toLocaleDateString()}</p>
+                          </div>
+                          <div className="text-right flex-shrink-0">
+                            <p className="font-bold text-foreground text-sm">
+                              {pr.weight > 0 ? `${pr.weight}kg × ${pr.reps}` : `${pr.reps} reps`}
+                            </p>
+                            <p className="text-xs text-primary">
+                              {pr.weight > 0 ? `1RM: ${pr.estimated1RM}kg` : 'Bodyweight'}
+                            </p>
+                          </div>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </>
+            )}
           </>
         )}
 
         {activeTab === 'body' && (
           <>
-            {/* Weight chart */}
-            {weightData.length > 1 && (
+            {weightData.length > 0 && (
               <div className="bg-card border border-border rounded-2xl p-4">
                 <h3 className="font-bold text-foreground mb-1">Body Weight</h3>
                 <p className="text-xs text-muted-foreground mb-3">Last 30 days</p>
@@ -185,22 +224,21 @@ export default function Progress() {
                   <AreaChart data={weightData}>
                     <defs>
                       <linearGradient id="colorWeight" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor="#8B5CF6" stopOpacity={0.2} />
-                        <stop offset="95%" stopColor="#8B5CF6" stopOpacity={0} />
+                        <stop offset="5%" stopColor={CHART_COLORS.purple} stopOpacity={0.2} />
+                        <stop offset="95%" stopColor={CHART_COLORS.purple} stopOpacity={0} />
                       </linearGradient>
                     </defs>
                     <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
                     <XAxis dataKey="date" tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }} />
                     <YAxis tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }} domain={['auto', 'auto']} />
                     <Tooltip content={<CustomTooltip />} />
-                    <Area type="monotone" dataKey="weight" stroke="#8B5CF6" fill="url(#colorWeight)" strokeWidth={2.5} dot={{ r: 4, fill: '#8B5CF6' }} />
+                    <Area type="monotone" dataKey="weight" stroke={CHART_COLORS.purple} fill="url(#colorWeight)" strokeWidth={2.5} dot={{ r: 4, fill: CHART_COLORS.purple }} />
                   </AreaChart>
                 </ResponsiveContainer>
               </div>
             )}
 
-            {/* Height chart */}
-            {heightData.length > 1 && (
+            {heightData.length > 0 && (
               <div className="bg-card border border-border rounded-2xl p-4">
                 <h3 className="font-bold text-foreground mb-1">Height</h3>
                 <p className="text-xs text-muted-foreground mb-3">Last 30 days</p>
@@ -208,21 +246,20 @@ export default function Progress() {
                   <AreaChart data={heightData}>
                     <defs>
                       <linearGradient id="colorHeight" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor="#14b8a6" stopOpacity={0.2} />
-                        <stop offset="95%" stopColor="#14b8a6" stopOpacity={0} />
+                        <stop offset="5%" stopColor={CHART_COLORS.teal} stopOpacity={0.2} />
+                        <stop offset="95%" stopColor={CHART_COLORS.teal} stopOpacity={0} />
                       </linearGradient>
                     </defs>
                     <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
                     <XAxis dataKey="date" tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }} />
                     <YAxis tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }} domain={['auto', 'auto']} />
                     <Tooltip content={<CustomTooltip />} />
-                    <Area type="monotone" dataKey="height" stroke="#14b8a6" fill="url(#colorHeight)" strokeWidth={2.5} dot={{ r: 4, fill: '#14b8a6' }} />
+                    <Area type="monotone" dataKey="height" stroke={CHART_COLORS.teal} fill="url(#colorHeight)" strokeWidth={2.5} dot={{ r: 4, fill: CHART_COLORS.teal }} />
                   </AreaChart>
                 </ResponsiveContainer>
               </div>
             )}
 
-            {/* Workout summary */}
             <div className="grid grid-cols-2 gap-3">
               <div className="bg-card border border-border rounded-2xl p-4">
                 <p className="text-sm text-muted-foreground mb-1">Total Workouts</p>
@@ -231,8 +268,8 @@ export default function Progress() {
               <div className="bg-card border border-border rounded-2xl p-4">
                 <p className="text-sm text-muted-foreground mb-1">Total Volume</p>
                 <p className="text-3xl font-black text-foreground">
-                  {Math.round(workoutHistory.reduce((s, w) => s + (w.totalVolume || 0), 0) / 1000)}
-                  <span className="text-lg font-normal text-muted-foreground">t</span>
+                  {totalVolumeT}
+                  <span className="text-lg font-normal text-muted-foreground"> t</span>
                 </p>
               </div>
             </div>
@@ -257,6 +294,7 @@ export default function Progress() {
                       <label className="text-xs text-muted-foreground capitalize mb-1 block">{m}</label>
                       <input
                         type="number"
+                        inputMode="decimal"
                         value={measure[m]}
                         onChange={e => setMeasure(p => ({ ...p, [m]: e.target.value }))}
                         placeholder="cm"
@@ -269,6 +307,7 @@ export default function Progress() {
                   <label className="text-xs text-muted-foreground mb-1 block">Body Fat % (optional)</label>
                   <input
                     type="number"
+                    inputMode="decimal"
                     value={measure.bodyFat}
                     onChange={e => setMeasure(p => ({ ...p, bodyFat: e.target.value }))}
                     placeholder="%"
@@ -288,7 +327,6 @@ export default function Progress() {
               </motion.div>
             )}
 
-            {/* Measurement history */}
             {measurements.length > 0 && (
               <div>
                 <h2 className="font-bold text-foreground mb-3">History</h2>

@@ -148,7 +148,7 @@ export default function Nutrition() {
       {/* Add Meal Modal */}
       <AnimatePresence>
         {showAdd && (
-          <div className="fixed inset-0 bg-black/50 z-50 flex items-end" onClick={() => setShowAdd(false)}>
+          <div className="fixed inset-0 bg-black/50 z-50 flex items-end pb-20" onClick={() => setShowAdd(false)}>
             <motion.div
               initial={{ y: '100%' }}
               animate={{ y: 0 }}
@@ -230,7 +230,7 @@ export default function Nutrition() {
       {/* Delete confirm */}
       <AnimatePresence>
         {deletingId && (
-          <div className="fixed inset-0 bg-black/50 z-50 flex items-end" onClick={() => setDeletingId(null)}>
+          <div className="fixed inset-0 bg-black/50 z-50 flex items-end pb-20" onClick={() => setDeletingId(null)}>
             <motion.div
               initial={{ y: 200 }}
               animate={{ y: 0 }}

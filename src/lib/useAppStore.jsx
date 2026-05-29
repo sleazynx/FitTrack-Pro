@@ -65,8 +65,11 @@ export function AppProvider({ children }) {
   }, []);
 
   const checkAndSavePR = useCallback((exerciseId, exerciseName, weight, reps) => {
-    const est1RM = Math.round(parseFloat(weight) * (1 + parseInt(reps) / 30));
-    const isNew = savePR(exerciseId, exerciseName, parseFloat(weight), parseInt(reps), est1RM);
+    const w = parseFloat(weight);
+    const r = parseInt(reps);
+    // For bodyweight (0 kg) exercises, use reps as the score
+    const est1RM = w === 0 ? r : (r === 1 ? w : Math.round(w * (1 + r / 30)));
+    const isNew = savePR(exerciseId, exerciseName, w, r, est1RM);
     setPrHistory(getPRHistory());
     return { isNew, est1RM };
   }, []);

@@ -390,6 +390,7 @@ function SetRow({ setNumber, set, pr, est1RM, onUpdate, onComplete, onRemove, ca
       <div className="col-span-3">
         <input
           type="number"
+          inputMode="decimal"
           value={set.weight}
           onChange={e => onUpdate('weight', e.target.value)}
           placeholder="0"
@@ -400,6 +401,7 @@ function SetRow({ setNumber, set, pr, est1RM, onUpdate, onComplete, onRemove, ca
       <div className="col-span-2">
         <input
           type="number"
+          inputMode="numeric"
           value={set.reps}
           onChange={e => onUpdate('reps', e.target.value)}
           placeholder="0"

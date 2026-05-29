@@ -272,7 +272,7 @@ export default function Dashboard() {
 
       {/* Weight Modal */}
       {showWeightModal && (
-        <div className="fixed inset-0 bg-black/50 z-50 flex items-end" onClick={() => setShowWeightModal(false)}>
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-end pb-20" onClick={() => setShowWeightModal(false)}>
           <motion.div
             initial={{ y: 200 }}
             animate={{ y: 0 }}
@@ -282,6 +282,7 @@ export default function Dashboard() {
             <h3 className="text-xl font-bold text-foreground mb-4">Log Weight</h3>
             <input
               type="number"
+              inputMode="decimal"
               value={weightInput}
               onChange={e => setWeightInput(e.target.value)}
               placeholder="e.g. 75.5"
@@ -306,7 +307,7 @@ export default function Dashboard() {
 
       {/* Height Modal */}
       {showHeightModal && (
-        <div className="fixed inset-0 bg-black/50 z-50 flex items-end" onClick={() => setShowHeightModal(false)}>
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-end pb-20" onClick={() => setShowHeightModal(false)}>
           <motion.div
             initial={{ y: 200 }}
             animate={{ y: 0 }}
@@ -316,6 +317,7 @@ export default function Dashboard() {
             <h3 className="text-xl font-bold text-foreground mb-4">Log Height</h3>
             <input
               type="number"
+              inputMode="decimal"
               value={heightInput}
               onChange={e => setHeightInput(e.target.value)}
               placeholder="e.g. 175"
