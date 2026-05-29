@@ -1,65 +1,92 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Plus, Check, ChevronDown, ChevronUp, Timer, Dumbbell, Search } from 'lucide-react';
+import { X, Plus, Check, ChevronDown, ChevronUp, Timer, Dumbbell, Zap } from 'lucide-react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useApp } from '../../lib/useAppStore';
-import { getAllExercises, calculate1RM, MUSCLE_GROUPS, EXERCISE_TYPES } from '../../lib/exercises';
+import { getAllExercises, calculate1RM } from '../../lib/exercises';
+import { saveActiveWorkout, getActiveWorkout, clearActiveWorkout } from '../../lib/storage';
 import PRCelebration from '../../components/workout/PRCelebration';
 import RestTimer from '../../components/workout/RestTimer';
 import ExercisePicker from '../../components/workout/ExercisePicker';
+
+function makeSet(prev = null) {
+  return {
+    id: Date.now().toString() + Math.random(),
+    weight: prev?.weight ?? '',
+    reps: prev?.reps ?? '',
+    completed: false,
+  };
+}
 
 export default function ActiveWorkout() {
   const { routineId } = useParams();
   const navigate = useNavigate();
   const { routines, customExercises, completeWorkout, prHistory, checkAndSavePR, settings } = useApp();
   const allExercises = getAllExercises(customExercises);
-
   const routine = routineId !== 'empty' ? routines.find(r => r.id === routineId) : null;
 
-  const [workoutName, setWorkoutName] = useState(routine?.name || 'Quick Workout');
-  const [exercises, setExercises] = useState(() => {
-    if (routine?.exercises) {
-      return routine.exercises.map(ex => ({
-        ...ex,
-        sets: [{ id: Date.now().toString() + Math.random(), weight: '', reps: '', completed: false, previous: null }],
-      }));
-    }
-    return [];
-  });
-  const [startTime] = useState(Date.now());
+  // ── Session start: fixed at mount time so midnight splits don't occur ──
+  const sessionStartRef = useRef(null);
+
+  const [workoutName, setWorkoutName] = useState('');
+  const [exercises, setExercises] = useState([]);
+  const [startTimestamp, setStartTimestamp] = useState(null); // epoch ms
   const [elapsed, setElapsed] = useState(0);
   const [showExPicker, setShowExPicker] = useState(false);
   const [restTimer, setRestTimer] = useState(null);
   const [showFinish, setShowFinish] = useState(false);
   const [prAlert, setPrAlert] = useState(null);
-  const [newPRs, setNewPRs] = useState([]);
+  const [showWarmup, setShowWarmup] = useState(null); // exerciseIdx or null
+  const [initialized, setInitialized] = useState(false);
 
-  // Elapsed timer
+  // ── Load or resume session ──
   useEffect(() => {
-    const interval = setInterval(() => {
-      setElapsed(Math.floor((Date.now() - startTime) / 1000));
-    }, 1000);
-    return () => clearInterval(interval);
-  }, [startTime]);
+    const saved = getActiveWorkout();
+    if (saved && saved.routineId === routineId) {
+      // Resume crashed/backgrounded session
+      setWorkoutName(saved.workoutName);
+      setExercises(saved.exercises);
+      setStartTimestamp(saved.startTimestamp);
+    } else {
+      // Fresh session — record start time once (midnight-safe: one fixed timestamp)
+      const now = Date.now();
+      setStartTimestamp(now);
+      const initExercises = routine?.exercises
+        ? routine.exercises.map(ex => ({
+            ...ex,
+            sets: [makeSet()],
+          }))
+        : [];
+      setWorkoutName(routine?.name || 'Quick Workout');
+      setExercises(initExercises);
+    }
+    setInitialized(true);
+  }, []);
 
-  const formatTime = (s) => {
-    const m = Math.floor(s / 60);
-    const sec = s % 60;
-    return `${m}:${sec.toString().padStart(2, '0')}`;
-  };
+  // ── Auto-save on every change (crash recovery) ──
+  useEffect(() => {
+    if (!initialized || startTimestamp === null) return;
+    saveActiveWorkout({ routineId, workoutName, exercises, startTimestamp });
+  }, [exercises, workoutName, initialized, startTimestamp]);
 
+  // ── Elapsed timer (timestamp-based, background-safe) ──
+  useEffect(() => {
+    if (!startTimestamp) return;
+    const tick = () => setElapsed(Math.floor((Date.now() - startTimestamp) / 1000));
+    tick();
+    const id = setInterval(tick, 1000);
+    return () => clearInterval(id);
+  }, [startTimestamp]);
+
+  const formatTime = (s) => `${Math.floor(s / 60)}:${(s % 60).toString().padStart(2, '0')}`;
+
+  // ── Set operations ──
   const addSet = (exIdx) => {
     setExercises(prev => {
       const updated = [...prev];
       const ex = { ...updated[exIdx] };
       const lastSet = ex.sets[ex.sets.length - 1];
-      ex.sets = [...ex.sets, {
-        id: Date.now().toString() + Math.random(),
-        weight: lastSet?.weight || '',
-        reps: lastSet?.reps || '',
-        completed: false,
-        previous: null,
-      }];
+      ex.sets = [...ex.sets, makeSet(lastSet)];
       updated[exIdx] = ex;
       return updated;
     });
@@ -87,25 +114,33 @@ export default function ActiveWorkout() {
   };
 
   const completeSet = (exIdx, setIdx) => {
-    const ex = exercises[exIdx];
-    const set = ex.sets[setIdx];
-    if (!set.weight || !set.reps) return;
+    setExercises(prev => {
+      const updated = [...prev];
+      const ex = { ...updated[exIdx] };
+      const set = ex.sets[setIdx];
 
-    // Check PR
-    const { isNew, est1RM } = checkAndSavePR(ex.exerciseId, ex.exerciseName, parseFloat(set.weight), parseInt(set.reps));
-    if (isNew) {
-      setPrAlert({ exerciseName: ex.exerciseName, weight: set.weight, reps: set.reps, est1RM });
-      setNewPRs(prev => [...prev, { exerciseName: ex.exerciseName, weight: set.weight, reps: set.reps, est1RM }]);
-    }
+      // ── Validation: fill from previous set if empty ──
+      const prevSet = setIdx > 0 ? ex.sets[setIdx - 1] : null;
+      const weight = set.weight !== '' ? set.weight : (prevSet?.weight ?? '0');
+      const reps   = set.reps   !== '' ? set.reps   : (prevSet?.reps   ?? '1');
 
-    updateSet(exIdx, setIdx, 'completed', true);
+      if (!reps) return prev; // still nothing to log
 
-    // Haptic
-    if (navigator.vibrate) navigator.vibrate([50]);
+      // Update with resolved values before marking complete
+      ex.sets = ex.sets.map((s, i) =>
+        i === setIdx ? { ...s, weight, reps, completed: true } : s
+      );
+      updated[exIdx] = ex;
 
-    // Start rest timer
-    const defaultRest = settings?.restTimerDefault || 180;
-    setRestTimer(defaultRest);
+      // PR check (runs after state update via resolved values)
+      const { isNew, est1RM } = checkAndSavePR(ex.exerciseId, ex.exerciseName, parseFloat(weight), parseInt(reps));
+      if (isNew) setPrAlert({ exerciseName: ex.exerciseName, weight, reps, est1RM });
+
+      if (navigator.vibrate) navigator.vibrate([50]);
+      setRestTimer(settings?.restTimerDefault || 180);
+
+      return updated;
+    });
   };
 
   const addExercise = (ex) => {
@@ -113,30 +148,37 @@ export default function ActiveWorkout() {
       exerciseId: ex.id,
       exerciseName: ex.name,
       muscleGroup: ex.muscleGroup,
-      sets: [{ id: Date.now().toString(), weight: '', reps: '', completed: false }],
+      sets: [makeSet()],
     }]);
     setShowExPicker(false);
   };
 
-  const removeExercise = (exIdx) => {
-    setExercises(prev => prev.filter((_, i) => i !== exIdx));
-  };
+  const removeExercise = (exIdx) => setExercises(prev => prev.filter((_, i) => i !== exIdx));
 
   const handleFinish = () => {
     const session = {
       name: workoutName,
       routineId: routine?.id || null,
+      // completedAt uses Date.now() so it's recorded when finished, not when started
       exercises,
       duration: Math.floor(elapsed / 60),
       totalVolume: exercises.reduce((total, ex) =>
         total + ex.sets.filter(s => s.completed && s.weight && s.reps)
           .reduce((sum, s) => sum + parseFloat(s.weight) * parseInt(s.reps), 0), 0),
     };
-    const { newPRs: savedPRs } = completeWorkout(session);
+    completeWorkout(session);
+    clearActiveWorkout();
+    navigate('/workout', { replace: true });
+  };
+
+  const handleDiscard = () => {
+    clearActiveWorkout();
     navigate('/workout', { replace: true });
   };
 
   const completedSets = exercises.reduce((sum, ex) => sum + ex.sets.filter(s => s.completed).length, 0);
+
+  if (!initialized) return null;
 
   return (
     <div className="min-h-full bg-background flex flex-col">
@@ -161,15 +203,17 @@ export default function ActiveWorkout() {
       </div>
 
       {/* Rest Timer Banner */}
-      {restTimer !== null && (
-        <RestTimer
-          seconds={restTimer}
-          defaultSeconds={settings?.restTimerDefault || 180}
-          onDone={() => setRestTimer(null)}
-          onSkip={() => setRestTimer(null)}
-          onChange={(s) => setRestTimer(s)}
-        />
-      )}
+      <AnimatePresence>
+        {restTimer !== null && (
+          <RestTimer
+            seconds={restTimer}
+            defaultSeconds={settings?.restTimerDefault || 180}
+            onDone={() => setRestTimer(null)}
+            onSkip={() => setRestTimer(null)}
+            onChange={(s) => setRestTimer(s)}
+          />
+        )}
+      </AnimatePresence>
 
       {/* Exercise list */}
       <div className="flex-1 overflow-y-auto ios-scroll px-5 py-4 pb-32 space-y-4">
@@ -184,12 +228,14 @@ export default function ActiveWorkout() {
           <ExerciseCard
             key={`${ex.exerciseId}-${exIdx}`}
             exercise={ex}
+            exIdx={exIdx}
             prHistory={prHistory}
             onAddSet={() => addSet(exIdx)}
             onRemoveSet={(setIdx) => removeSet(exIdx, setIdx)}
             onUpdateSet={(setIdx, field, value) => updateSet(exIdx, setIdx, field, value)}
             onCompleteSet={(setIdx) => completeSet(exIdx, setIdx)}
             onRemoveExercise={() => removeExercise(exIdx)}
+            onShowWarmup={() => setShowWarmup(exIdx)}
           />
         ))}
 
@@ -224,6 +270,16 @@ export default function ActiveWorkout() {
         )}
       </AnimatePresence>
 
+      {/* Warmup Calculator */}
+      <AnimatePresence>
+        {showWarmup !== null && (
+          <WarmupModal
+            exercise={exercises[showWarmup]}
+            onClose={() => setShowWarmup(null)}
+          />
+        )}
+      </AnimatePresence>
+
       {/* Cancel confirm */}
       <AnimatePresence>
         {showFinish && (
@@ -236,10 +292,10 @@ export default function ActiveWorkout() {
               onClick={e => e.stopPropagation()}
             >
               <h3 className="text-xl font-bold text-foreground mb-2">End Workout?</h3>
-              <p className="text-muted-foreground mb-6">Your progress will be lost if you don't finish.</p>
+              <p className="text-muted-foreground mb-6">Save your progress or discard this session.</p>
               <div className="flex gap-3">
                 <button onClick={() => setShowFinish(false)} className="flex-1 py-3.5 border border-border rounded-xl font-semibold tap-scale">Keep Going</button>
-                <button onClick={() => navigate('/workout')} className="flex-1 py-3.5 bg-destructive text-white rounded-xl font-semibold tap-scale">Discard</button>
+                <button onClick={handleDiscard} className="flex-1 py-3.5 bg-destructive text-white rounded-xl font-semibold tap-scale">Discard</button>
               </div>
               <button onClick={handleFinish} className="w-full mt-3 py-3.5 bg-primary text-primary-foreground rounded-xl font-semibold tap-scale">Save & Exit</button>
             </motion.div>
@@ -249,29 +305,95 @@ export default function ActiveWorkout() {
 
       {/* PR Celebration */}
       <AnimatePresence>
-        {prAlert && (
-          <PRCelebration pr={prAlert} onClose={() => setPrAlert(null)} />
-        )}
+        {prAlert && <PRCelebration pr={prAlert} onClose={() => setPrAlert(null)} />}
       </AnimatePresence>
     </div>
   );
 }
 
-function ExerciseCard({ exercise, prHistory, onAddSet, onRemoveSet, onUpdateSet, onCompleteSet, onRemoveExercise }) {
+// ── Warmup Calculator ──────────────────────────────────────────────────────────
+function WarmupModal({ exercise, onClose }) {
+  const completedSets = exercise.sets.filter(s => s.completed && s.weight);
+  const lastWeight = completedSets.length > 0
+    ? parseFloat(completedSets[completedSets.length - 1].weight)
+    : parseFloat(exercise.sets.find(s => s.weight)?.weight || 0);
+
+  const [targetWeight, setTargetWeight] = useState(lastWeight > 0 ? String(lastWeight) : '');
+
+  const target = parseFloat(targetWeight) || 0;
+  const warmups = target > 0
+    ? [
+        { pct: '50%', weight: Math.round(target * 0.5 / 2.5) * 2.5, reps: 10 },
+        { pct: '65%', weight: Math.round(target * 0.65 / 2.5) * 2.5, reps: 6 },
+        { pct: '80%', weight: Math.round(target * 0.8 / 2.5) * 2.5, reps: 3 },
+        { pct: '90%', weight: Math.round(target * 0.9 / 2.5) * 2.5, reps: 1 },
+      ]
+    : [];
+
+  return (
+    <div className="fixed inset-0 bg-black/50 z-50 flex items-end" onClick={onClose}>
+      <motion.div
+        initial={{ y: 300 }}
+        animate={{ y: 0 }}
+        exit={{ y: 300 }}
+        className="bg-card w-full rounded-t-3xl p-6 pb-10"
+        onClick={e => e.stopPropagation()}
+      >
+        <div className="flex items-center gap-2 mb-4">
+          <Zap size={20} className="text-amber-500" />
+          <h3 className="text-xl font-bold text-foreground">Warmup Calculator</h3>
+        </div>
+        <p className="text-sm text-muted-foreground mb-3">{exercise.exerciseName}</p>
+        <div className="mb-4">
+          <label className="text-xs text-muted-foreground mb-1 block">Working weight (kg)</label>
+          <input
+            type="number"
+            inputMode="decimal"
+            value={targetWeight}
+            onChange={e => setTargetWeight(e.target.value)}
+            onFocus={e => e.target.select()}
+            placeholder="e.g. 100"
+            className="w-full bg-muted rounded-xl px-4 py-3 text-foreground text-lg font-bold focus:outline-none"
+            autoFocus
+          />
+        </div>
+        {warmups.length > 0 ? (
+          <div className="space-y-2">
+            {warmups.map((w, i) => (
+              <div key={i} className="flex items-center justify-between bg-muted rounded-xl px-4 py-3">
+                <span className="text-sm font-semibold text-muted-foreground">{w.pct}</span>
+                <span className="text-base font-black text-foreground">{w.weight} kg</span>
+                <span className="text-sm text-muted-foreground">× {w.reps} reps</span>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <p className="text-center text-muted-foreground text-sm py-4">Enter a working weight above</p>
+        )}
+        <button onClick={onClose} className="w-full mt-4 py-3.5 bg-primary text-primary-foreground rounded-xl font-semibold tap-scale">Done</button>
+      </motion.div>
+    </div>
+  );
+}
+
+// ── Exercise Card ──────────────────────────────────────────────────────────────
+function ExerciseCard({ exercise, exIdx, prHistory, onAddSet, onRemoveSet, onUpdateSet, onCompleteSet, onRemoveExercise, onShowWarmup }) {
   const [collapsed, setCollapsed] = useState(false);
   const pr = prHistory[exercise.exerciseId];
 
   return (
     <div className="bg-card border border-border rounded-2xl overflow-hidden">
-      {/* Exercise header */}
       <div className="flex items-center gap-3 px-4 py-3 border-b border-border">
         <div className="flex-1">
           <h3 className="font-bold text-foreground">{exercise.exerciseName}</h3>
           <p className="text-xs text-muted-foreground">
             {exercise.muscleGroup}
-            {pr && <span className="text-primary ml-2">PR: {pr.weight}kg × {pr.reps}</span>}
+            {pr && <span className="text-primary ml-2">PR: {pr.weight > 0 ? `${pr.weight}kg × ${pr.reps}` : `${pr.reps} reps`}</span>}
           </p>
         </div>
+        <button onClick={onShowWarmup} className="p-1 tap-scale" title="Warmup Calculator">
+          <Zap size={17} className="text-amber-500" />
+        </button>
         <button onClick={() => setCollapsed(c => !c)} className="p-1 tap-scale">
           {collapsed ? <ChevronDown size={18} className="text-muted-foreground" /> : <ChevronUp size={18} className="text-muted-foreground" />}
         </button>
@@ -282,7 +404,6 @@ function ExerciseCard({ exercise, prHistory, onAddSet, onRemoveSet, onUpdateSet,
 
       {!collapsed && (
         <div className="px-4 py-3">
-          {/* Set headers */}
           <div className="grid grid-cols-12 gap-2 text-xs font-semibold text-muted-foreground mb-2 px-1">
             <div className="col-span-1">Set</div>
             <div className="col-span-4">Previous</div>
@@ -320,6 +441,7 @@ function ExerciseCard({ exercise, prHistory, onAddSet, onRemoveSet, onUpdateSet,
   );
 }
 
+// ── Set Row ────────────────────────────────────────────────────────────────────
 function SetRow({ setNumber, set, pr, est1RM, onUpdate, onComplete, onRemove, canRemove }) {
   const isPR = pr && est1RM && est1RM > pr.estimated1RM;
 
@@ -330,7 +452,7 @@ function SetRow({ setNumber, set, pr, est1RM, onUpdate, onComplete, onRemove, ca
     >
       <div className="col-span-1 text-sm font-bold text-muted-foreground text-center">{setNumber}</div>
       <div className="col-span-4 text-xs text-muted-foreground pl-1">
-        {pr ? `${pr.weight}×${pr.reps}` : '–'}
+        {pr ? (pr.weight > 0 ? `${pr.weight}×${pr.reps}` : `${pr.reps}r`) : '–'}
         {isPR && <span className="text-xs text-amber-500 ml-1">↑PR</span>}
       </div>
       <div className="col-span-3">
@@ -360,8 +482,7 @@ function SetRow({ setNumber, set, pr, est1RM, onUpdate, onComplete, onRemove, ca
       <div className="col-span-2 flex justify-center">
         <button
           onClick={set.completed ? undefined : onComplete}
-          disabled={!set.weight || !set.reps}
-          className={`w-8 h-8 rounded-lg flex items-center justify-center tap-scale transition-all ${set.completed ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground disabled:opacity-30'}`}
+          className={`w-8 h-8 rounded-lg flex items-center justify-center tap-scale transition-all ${set.completed ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground'}`}
         >
           <Check size={15} />
         </button>

@@ -13,6 +13,7 @@ const KEYS = {
   DAILY_LOGS: 'fittrack_daily',
   SETTINGS: 'fittrack_settings',
   ONBOARDED: 'fittrack_onboarded',
+  ACTIVE_WORKOUT: 'fittrack_active_workout',
 };
 
 function get(key, fallback = null) {
@@ -191,6 +192,17 @@ export function addMeasurement(measurement) {
   measurements.unshift(newM);
   set(KEYS.BODY_MEASUREMENTS, measurements);
   return newM;
+}
+
+// Active workout session (crash recovery)
+export function saveActiveWorkout(session) {
+  set(KEYS.ACTIVE_WORKOUT, session);
+}
+export function getActiveWorkout() {
+  return get(KEYS.ACTIVE_WORKOUT, null);
+}
+export function clearActiveWorkout() {
+  localStorage.removeItem(KEYS.ACTIVE_WORKOUT);
 }
 
 // Export all data

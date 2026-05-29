@@ -21,6 +21,15 @@ export default function Dashboard() {
   const [showHeightModal, setShowHeightModal] = useState(false);
   const [heightInput, setHeightInput] = useState('');
 
+  // Last logged weight from any day (falls back to profile if never logged)
+  const lastLoggedWeight = React.useMemo(() => {
+    try {
+      const logs = JSON.parse(localStorage.getItem('fittrack_daily') || '[]');
+      const withWeight = logs.filter(l => l.weight).sort((a, b) => new Date(b.date) - new Date(a.date));
+      return withWeight[0]?.weight || profile?.weightKg || null;
+    } catch { return profile?.weightKg || null; }
+  }, [todayLog, profile]);
+
   const greeting = () => {
     const h = new Date().getHours();
     if (h < 12) return 'Good morning';
@@ -176,62 +185,22 @@ export default function Dashboard() {
               <span className="text-sm font-semibold text-foreground">Weight</span>
             </div>
             <div className="text-2xl font-black text-foreground">
-              {todayLog?.weight || profile?.weightKg || '--'}
+              {lastLoggedWeight || '--'}
               <span className="text-sm font-normal text-muted-foreground"> kg</span>
             </div>
+            <p className="text-xs text-muted-foreground mt-1">
+              {todayLog?.weight ? "Today's log" : "Last logged"}
+            </p>
             <button
               onClick={() => setShowWeightModal(true)}
-              className="mt-3 w-full py-2 bg-purple-50 dark:bg-purple-900/20 rounded-xl text-purple-600 dark:text-purple-400 text-xs font-semibold tap-scale"
+              className="mt-2 w-full py-2 bg-purple-50 dark:bg-purple-900/20 rounded-xl text-purple-600 dark:text-purple-400 text-xs font-semibold tap-scale"
             >
               Log weight
             </button>
           </div>
         </motion.div>
 
-        {/* Weight + Height track row */}
-        <motion.div variants={itemVariants} className="grid grid-cols-2 gap-3">
-          {/* Weight history hint */}
-          <div className="bg-card rounded-2xl border border-border p-4 shadow-sm">
-            <div className="flex items-center gap-2 mb-3">
-              <div className="w-8 h-8 rounded-xl bg-purple-100 dark:bg-purple-900/30 flex items-center justify-center">
-                <Scale size={16} className="text-purple-500" />
-              </div>
-              <span className="text-sm font-semibold text-foreground">Weight</span>
-            </div>
-            <div className="text-2xl font-black text-foreground">
-              {todayLog?.weight || profile?.weightKg || '--'}
-              <span className="text-sm font-normal text-muted-foreground"> kg</span>
-            </div>
-            <p className="text-xs text-muted-foreground mt-1">Today's log</p>
-            <button
-              onClick={() => setShowWeightModal(true)}
-              className="mt-2 w-full py-2 bg-purple-50 dark:bg-purple-900/20 rounded-xl text-purple-600 dark:text-purple-400 text-xs font-semibold tap-scale"
-            >
-              Update
-            </button>
-          </div>
 
-          {/* Height */}
-          <div className="bg-card rounded-2xl border border-border p-4 shadow-sm">
-            <div className="flex items-center gap-2 mb-3">
-              <div className="w-8 h-8 rounded-xl bg-teal-100 dark:bg-teal-900/30 flex items-center justify-center">
-                <Ruler size={16} className="text-teal-500" />
-              </div>
-              <span className="text-sm font-semibold text-foreground">Height</span>
-            </div>
-            <div className="text-2xl font-black text-foreground">
-              {todayLog?.height || profile?.heightCm || '--'}
-              <span className="text-sm font-normal text-muted-foreground"> cm</span>
-            </div>
-            <p className="text-xs text-muted-foreground mt-1">Today's log</p>
-            <button
-              onClick={() => setShowHeightModal(true)}
-              className="mt-2 w-full py-2 bg-teal-50 dark:bg-teal-900/20 rounded-xl text-teal-600 dark:text-teal-400 text-xs font-semibold tap-scale"
-            >
-              Update
-            </button>
-          </div>
-        </motion.div>
 
         {/* Recent workouts */}
         <motion.div variants={itemVariants} className="bg-card rounded-2xl border border-border shadow-sm overflow-hidden">

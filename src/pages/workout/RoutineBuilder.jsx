@@ -157,7 +157,6 @@ export default function RoutineBuilder() {
                     onChange={e => setSearch(e.target.value)}
                     placeholder="Search exercises..."
                     className="bg-transparent text-foreground text-sm flex-1 focus:outline-none"
-                    autoFocus
                   />
                 </div>
                 <button onClick={() => { setShowPicker(false); setSearch(''); }} className="p-2 tap-scale">
