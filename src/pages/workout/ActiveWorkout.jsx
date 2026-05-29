@@ -3,9 +3,10 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { X, Plus, Check, ChevronDown, ChevronUp, Timer, Dumbbell, Search } from 'lucide-react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useApp } from '../../lib/useAppStore';
-import { getAllExercises, calculate1RM, MUSCLE_GROUPS } from '../../lib/exercises';
+import { getAllExercises, calculate1RM, MUSCLE_GROUPS, EXERCISE_TYPES } from '../../lib/exercises';
 import PRCelebration from '../../components/workout/PRCelebration';
 import RestTimer from '../../components/workout/RestTimer';
+import ExercisePicker from '../../components/workout/ExercisePicker';
 
 export default function ActiveWorkout() {
   const { routineId } = useParams();
@@ -28,8 +29,6 @@ export default function ActiveWorkout() {
   const [startTime] = useState(Date.now());
   const [elapsed, setElapsed] = useState(0);
   const [showExPicker, setShowExPicker] = useState(false);
-  const [exSearch, setExSearch] = useState('');
-  const [exFilter, setExFilter] = useState('All');
   const [restTimer, setRestTimer] = useState(null);
   const [showFinish, setShowFinish] = useState(false);
   const [prAlert, setPrAlert] = useState(null);
@@ -117,7 +116,6 @@ export default function ActiveWorkout() {
       sets: [{ id: Date.now().toString(), weight: '', reps: '', completed: false }],
     }]);
     setShowExPicker(false);
-    setExSearch('');
   };
 
   const removeExercise = (exIdx) => {
@@ -137,12 +135,6 @@ export default function ActiveWorkout() {
     const { newPRs: savedPRs } = completeWorkout(session);
     navigate('/workout', { replace: true });
   };
-
-  const filteredEx = allExercises.filter(e => {
-    const ms = e.name.toLowerCase().includes(exSearch.toLowerCase());
-    const mf = exFilter === 'All' || e.muscleGroup === exFilter;
-    return ms && mf;
-  });
 
   const completedSets = exercises.reduce((sum, ex) => sum + ex.sets.filter(s => s.completed).length, 0);
 
@@ -223,58 +215,12 @@ export default function ActiveWorkout() {
       {/* Exercise Picker */}
       <AnimatePresence>
         {showExPicker && (
-          <div className="fixed inset-0 bg-black/50 z-50 flex items-end">
-            <motion.div
-              initial={{ y: '100%' }}
-              animate={{ y: 0 }}
-              exit={{ y: '100%' }}
-              transition={{ type: 'spring', stiffness: 300, damping: 30 }}
-              className="bg-background w-full h-[80dvh] rounded-t-3xl flex flex-col overflow-hidden"
-            >
-              <div className="flex items-center gap-3 px-5 pt-5 pb-3 border-b border-border flex-shrink-0">
-                <div className="flex-1 flex items-center gap-2 bg-muted rounded-xl px-3 py-2.5">
-                  <Search size={16} className="text-muted-foreground" />
-                  <input
-                    type="text"
-                    value={exSearch}
-                    onChange={e => setExSearch(e.target.value)}
-                    placeholder="Search exercises..."
-                    className="bg-transparent text-foreground text-sm flex-1 focus:outline-none"
-                    autoFocus
-                  />
-                </div>
-                <button onClick={() => { setShowExPicker(false); setExSearch(''); }} className="tap-scale">
-                  <X size={20} className="text-muted-foreground" />
-                </button>
-              </div>
-              <div className="flex gap-2 px-5 py-2.5 overflow-x-auto flex-shrink-0">
-                {['All', ...MUSCLE_GROUPS].map(m => (
-                  <button
-                    key={m}
-                    onClick={() => setExFilter(m)}
-                    className={`flex-shrink-0 px-3 py-1.5 rounded-full text-xs font-semibold transition-all ${exFilter === m ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground'}`}
-                  >
-                    {m}
-                  </button>
-                ))}
-              </div>
-              <div className="flex-1 overflow-y-auto ios-scroll px-5 pb-5">
-                {filteredEx.map(ex => (
-                  <button
-                    key={ex.id}
-                    onClick={() => addExercise(ex)}
-                    className="w-full flex items-center gap-3 py-3.5 border-b border-border last:border-0 text-left tap-scale"
-                  >
-                    <div>
-                      <p className="font-semibold text-foreground text-sm">{ex.name}</p>
-                      <p className="text-xs text-muted-foreground">{ex.muscleGroup} · {ex.type}</p>
-                    </div>
-                    <Plus size={18} className="text-muted-foreground ml-auto" />
-                  </button>
-                ))}
-              </div>
-            </motion.div>
-          </div>
+          <ExercisePicker
+            allExercises={allExercises}
+            customExercises={customExercises}
+            onAdd={addExercise}
+            onClose={() => setShowExPicker(false)}
+          />
         )}
       </AnimatePresence>
 
@@ -393,6 +339,7 @@ function SetRow({ setNumber, set, pr, est1RM, onUpdate, onComplete, onRemove, ca
           inputMode="decimal"
           value={set.weight}
           onChange={e => onUpdate('weight', e.target.value)}
+          onFocus={e => e.target.select()}
           placeholder="0"
           disabled={set.completed}
           className="w-full bg-muted rounded-lg px-2 py-2 text-center text-sm font-semibold text-foreground focus:outline-none focus:ring-1 focus:ring-primary/40 disabled:opacity-60"
@@ -404,6 +351,7 @@ function SetRow({ setNumber, set, pr, est1RM, onUpdate, onComplete, onRemove, ca
           inputMode="numeric"
           value={set.reps}
           onChange={e => onUpdate('reps', e.target.value)}
+          onFocus={e => e.target.select()}
           placeholder="0"
           disabled={set.completed}
           className="w-full bg-muted rounded-lg px-2 py-2 text-center text-sm font-semibold text-foreground focus:outline-none focus:ring-1 focus:ring-primary/40 disabled:opacity-60"

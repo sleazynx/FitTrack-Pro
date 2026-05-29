@@ -43,6 +43,7 @@ export const PRELOADED_EXERCISES = [
   { id: 'low_cable_fly', name: 'Low-to-High Cable Fly', muscleGroup: 'Chest', type: 'Cable', notes: 'Targets upper chest' },
   { id: 'machine_chest_press', name: 'Machine Chest Press', muscleGroup: 'Chest', type: 'Machine', notes: 'Adjust seat height' },
   { id: 'pec_deck', name: 'Pec Deck / Chest Fly Machine', muscleGroup: 'Chest', type: 'Machine', notes: 'Full contraction' },
+  { id: 'reverse_pec_deck', name: 'Reverse Pec Deck', muscleGroup: 'Shoulders', type: 'Machine', notes: 'Rear delt focus, chest on pad, arms out' },
   { id: 'pushup', name: 'Push-Up', muscleGroup: 'Chest', type: 'Bodyweight', notes: 'Full depth' },
   { id: 'wide_pushup', name: 'Wide Push-Up', muscleGroup: 'Chest', type: 'Bodyweight', notes: 'More chest activation' },
   { id: 'decline_pushup', name: 'Decline Push-Up', muscleGroup: 'Chest', type: 'Bodyweight', notes: 'Feet elevated, upper chest' },
@@ -99,9 +100,16 @@ export const PRELOADED_EXERCISES = [
   { id: 'cable_curl', name: 'Cable Curl', muscleGroup: 'Biceps', type: 'Cable', notes: 'Constant tension' },
   { id: 'high_cable_curl', name: 'High Cable Curl', muscleGroup: 'Biceps', type: 'Cable', notes: 'Arms at shoulder height' },
   { id: 'rope_hammer_curl', name: 'Rope Hammer Curl', muscleGroup: 'Biceps', type: 'Cable', notes: 'Neutral grip cable' },
-  { id: 'preacher_curl', name: 'Preacher Curl', muscleGroup: 'Biceps', type: 'Machine', notes: 'Full stretch at bottom' },
+  { id: 'preacher_curl_barbell', name: 'Preacher Curl (Barbell)', muscleGroup: 'Biceps', type: 'Barbell', notes: 'Elbows on pad, full stretch at bottom' },
+  { id: 'preacher_curl_ez', name: 'Preacher Curl (EZ Bar)', muscleGroup: 'Biceps', type: 'Barbell', notes: 'EZ bar, easier on wrists' },
+  { id: 'preacher_curl_db', name: 'Preacher Curl (Dumbbell)', muscleGroup: 'Biceps', type: 'Dumbbell', notes: 'Unilateral, full stretch' },
+  { id: 'preacher_curl_cable', name: 'Preacher Curl (Cable)', muscleGroup: 'Biceps', type: 'Cable', notes: 'Constant tension throughout ROM' },
+  { id: 'preacher_curl', name: 'Preacher Curl (Machine)', muscleGroup: 'Biceps', type: 'Machine', notes: 'Full stretch at bottom' },
   { id: 'machine_curl', name: 'Machine Curl', muscleGroup: 'Biceps', type: 'Machine', notes: 'Controlled ROM' },
   { id: 'reverse_curl', name: 'Reverse Curl', muscleGroup: 'Biceps', type: 'Barbell', notes: 'Pronated grip, forearm emphasis' },
+  { id: 'zottman_curl', name: 'Zottman Curl', muscleGroup: 'Biceps', type: 'Dumbbell', notes: 'Supinate up, pronate down' },
+  { id: 'cross_body_hammer_curl', name: 'Cross Body Hammer Curl', muscleGroup: 'Biceps', type: 'Dumbbell', notes: 'Curl across body, brachialis focus' },
+  { id: 'cable_hammer_curl', name: 'Cable Hammer Curl (Rope)', muscleGroup: 'Biceps', type: 'Cable', notes: 'Neutral grip rope attachment' },
 
   // ── TRICEPS ────────────────────────────────────────────────────────────
   { id: 'tricep_pushdown', name: 'Tricep Pushdown', muscleGroup: 'Triceps', type: 'Cable', notes: 'Elbows tucked, full extension' },
@@ -116,6 +124,31 @@ export const PRELOADED_EXERCISES = [
   { id: 'diamond_pushup', name: 'Diamond Push-Up', muscleGroup: 'Triceps', type: 'Bodyweight', notes: 'Hands form diamond shape' },
   { id: 'machine_tricep', name: 'Machine Tricep Extension', muscleGroup: 'Triceps', type: 'Machine', notes: 'Elbows on pad' },
   { id: 'jm_press', name: 'JM Press', muscleGroup: 'Triceps', type: 'Barbell', notes: 'Hybrid skull crusher and close grip' },
+  { id: 'cable_overhead_tricep_db', name: 'Single Arm Overhead Tricep Extension', muscleGroup: 'Triceps', type: 'Dumbbell', notes: 'Elbow pointed up, full stretch' },
+  { id: 'tate_press', name: 'Tate Press', muscleGroup: 'Triceps', type: 'Dumbbell', notes: 'Elbows flared, lower to chest' },
+  { id: 'tricep_bench_dip', name: 'Bench Dip', muscleGroup: 'Triceps', type: 'Bodyweight', notes: 'Feet on bench or floor' },
+
+  // ── MORE BACK ──────────────────────────────────────────────────────────
+  { id: 'cable_row_wide', name: 'Wide Grip Cable Row', muscleGroup: 'Back', type: 'Cable', notes: 'Elbows flared, upper back focus' },
+  { id: 'single_arm_cable_row', name: 'Single Arm Cable Row', muscleGroup: 'Back', type: 'Cable', notes: 'Rotate and stretch at full extension' },
+  { id: 'close_grip_pulldown', name: 'Close Grip Lat Pulldown', muscleGroup: 'Back', type: 'Cable', notes: 'V-bar, elbows to sides' },
+  { id: 'neutral_pullup', name: 'Neutral Grip Pull-Up', muscleGroup: 'Back', type: 'Bodyweight', notes: 'Palms facing each other' },
+  { id: 'band_pulldown', name: 'Band Pulldown', muscleGroup: 'Back', type: 'Cable', notes: 'Overhead band pull to chest' },
+  { id: 'seal_row', name: 'Seal Row', muscleGroup: 'Back', type: 'Barbell', notes: 'Chest on elevated bench, strict form' },
+
+  // ── MORE SHOULDERS ─────────────────────────────────────────────────────
+  { id: 'machine_shoulder_press', name: 'Machine Shoulder Press', muscleGroup: 'Shoulders', type: 'Machine', notes: 'Plate loaded or selectorized' },
+  { id: 'db_rear_delt_row', name: 'Rear Delt Row', muscleGroup: 'Shoulders', type: 'Dumbbell', notes: 'Elbows flared wide' },
+  { id: 'cable_upright_row', name: 'Cable Upright Row', muscleGroup: 'Shoulders', type: 'Cable', notes: 'Wide grip, pull to chin' },
+  { id: 'db_lateral_raise_seated', name: 'Seated Lateral Raise', muscleGroup: 'Shoulders', type: 'Dumbbell', notes: 'Eliminates body English' },
+  { id: 'cable_lateral_raise_cross', name: 'Cross-Cable Lateral Raise', muscleGroup: 'Shoulders', type: 'Cable', notes: 'Cable from opposite side, better contraction' },
+
+  // ── MORE LEGS ──────────────────────────────────────────────────────────
+  { id: 'belt_squat', name: 'Belt Squat', muscleGroup: 'Legs', type: 'Machine', notes: 'Hips loaded, spine decompressed' },
+  { id: 'leg_press_calf_raise', name: 'Leg Press Calf Raise', muscleGroup: 'Legs', type: 'Machine', notes: 'Toes on edge of leg press plate' },
+  { id: 'bulgarian_split_squat_barbell', name: 'Bulgarian Split Squat (Barbell)', muscleGroup: 'Legs', type: 'Barbell', notes: 'Rear foot elevated, barbell on back' },
+  { id: 'pendulum_squat', name: 'Pendulum Squat', muscleGroup: 'Legs', type: 'Machine', notes: 'Deep ROM, knees over toes' },
+  { id: 'adductor_machine', name: 'Hip Adduction Machine', muscleGroup: 'Legs', type: 'Machine', notes: 'Inner thigh, squeeze at close' },
 
   // ── LEGS ───────────────────────────────────────────────────────────────
   { id: 'squat', name: 'Squat', muscleGroup: 'Legs', type: 'Barbell', notes: 'Hip crease below parallel' },

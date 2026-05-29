@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Trophy, Scale, Activity, ChevronLeft } from 'lucide-react';
+import { Trophy, Scale, Activity, ChevronLeft, Ruler } from 'lucide-react';
 import { useApp } from '../lib/useAppStore';
 import { getAllExercises, calculate1RM } from '../lib/exercises';
 import {
@@ -25,11 +25,13 @@ const CustomTooltip = ({ active, payload, label }) => {
 };
 
 export default function Progress() {
-  const { workoutHistory, prHistory, measurements, addBodyMeasurement, customExercises } = useApp();
+  const { workoutHistory, prHistory, measurements, addBodyMeasurement, customExercises, updateDailyLog } = useApp();
   const [activeTab, setActiveTab] = useState('strength');
   const [selectedExercise, setSelectedExercise] = useState(null);
   const [showMeasureForm, setShowMeasureForm] = useState(false);
   const [measure, setMeasure] = useState({ waist: '', chest: '', arms: '', legs: '', bodyFat: '' });
+  const [weightInput, setWeightInput] = useState('');
+  const [heightInput, setHeightInput] = useState('');
 
   const allExercises = getAllExercises(customExercises);
   const prExercises = Object.keys(prHistory);
@@ -278,11 +280,59 @@ export default function Progress() {
 
         {activeTab === 'measurements' && (
           <>
+            {/* Weight & Height quick log */}
+            <div className="grid grid-cols-2 gap-3">
+              <div className="bg-card border border-border rounded-2xl p-4">
+                <div className="flex items-center gap-2 mb-2">
+                  <Scale size={15} className="text-purple-500" />
+                  <span className="text-sm font-semibold text-foreground">Weight</span>
+                </div>
+                <input
+                  type="number"
+                  inputMode="decimal"
+                  value={weightInput}
+                  onChange={e => setWeightInput(e.target.value)}
+                  onFocus={e => e.target.select()}
+                  placeholder="kg"
+                  className="w-full bg-muted rounded-xl px-3 py-2 text-foreground text-sm focus:outline-none mb-2"
+                />
+                <button
+                  onClick={() => { if (weightInput) { updateDailyLog({ weight: parseFloat(weightInput) }); setWeightInput(''); } }}
+                  disabled={!weightInput}
+                  className="w-full py-2 bg-purple-500 text-white rounded-xl text-xs font-semibold disabled:opacity-40 tap-scale"
+                >
+                  Log
+                </button>
+              </div>
+              <div className="bg-card border border-border rounded-2xl p-4">
+                <div className="flex items-center gap-2 mb-2">
+                  <Ruler size={15} className="text-teal-500" />
+                  <span className="text-sm font-semibold text-foreground">Height</span>
+                </div>
+                <input
+                  type="number"
+                  inputMode="decimal"
+                  value={heightInput}
+                  onChange={e => setHeightInput(e.target.value)}
+                  onFocus={e => e.target.select()}
+                  placeholder="cm"
+                  className="w-full bg-muted rounded-xl px-3 py-2 text-foreground text-sm focus:outline-none mb-2"
+                />
+                <button
+                  onClick={() => { if (heightInput) { updateDailyLog({ height: parseFloat(heightInput) }); setHeightInput(''); } }}
+                  disabled={!heightInput}
+                  className="w-full py-2 bg-teal-500 text-white rounded-xl text-xs font-semibold disabled:opacity-40 tap-scale"
+                >
+                  Log
+                </button>
+              </div>
+            </div>
+
             <button
               onClick={() => setShowMeasureForm(!showMeasureForm)}
               className="w-full flex items-center justify-center gap-2 py-4 bg-primary text-primary-foreground rounded-2xl font-bold text-base tap-scale"
             >
-              <Activity size={20} /> Log Measurements
+              <Activity size={20} /> Log Body Measurements
             </button>
 
             {showMeasureForm && (
