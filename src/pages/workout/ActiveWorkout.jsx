@@ -288,7 +288,8 @@ export default function ActiveWorkout() {
               initial={{ y: 200 }}
               animate={{ y: 0 }}
               exit={{ y: 200 }}
-              className="bg-card w-full rounded-t-3xl p-6 pb-10"
+              className="bg-card w-full rounded-t-3xl p-6"
+              style={{ paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 24px)' }}
               onClick={e => e.stopPropagation()}
             >
               <h3 className="text-xl font-bold text-foreground mb-2">End Workout?</h3>
@@ -336,7 +337,8 @@ function WarmupModal({ exercise, onClose }) {
         initial={{ y: 300 }}
         animate={{ y: 0 }}
         exit={{ y: 300 }}
-        className="bg-card w-full rounded-t-3xl p-6 pb-10"
+        className="bg-card w-full rounded-t-3xl p-6"
+        style={{ paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 24px)' }}
         onClick={e => e.stopPropagation()}
       >
         <div className="flex items-center gap-2 mb-4">
@@ -354,7 +356,6 @@ function WarmupModal({ exercise, onClose }) {
             onFocus={e => e.target.select()}
             placeholder="e.g. 100"
             className="w-full bg-muted rounded-xl px-4 py-3 text-foreground text-lg font-bold focus:outline-none"
-            autoFocus
           />
         </div>
         {warmups.length > 0 ? (

@@ -148,13 +148,14 @@ export default function Nutrition() {
       {/* Add Meal Modal */}
       <AnimatePresence>
         {showAdd && (
-          <div className="fixed inset-0 bg-black/50 z-50 flex items-end pb-20" onClick={() => setShowAdd(false)}>
+          <div className="fixed inset-0 bg-black/50 z-50 flex items-end" onClick={() => setShowAdd(false)}>
             <motion.div
               initial={{ y: '100%' }}
               animate={{ y: 0 }}
               exit={{ y: '100%' }}
               transition={{ type: 'spring', stiffness: 300, damping: 30 }}
-              className="bg-background w-full rounded-t-3xl p-6 pb-10 max-h-[90dvh] overflow-y-auto"
+              className="bg-background w-full rounded-t-3xl p-6 max-h-[80dvh] overflow-y-auto"
+              style={{ paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 24px)' }}
               onClick={e => e.stopPropagation()}
             >
               <div className="flex items-center gap-3 mb-5">
@@ -183,8 +184,8 @@ export default function Nutrition() {
                     value={entry.name}
                     onChange={e => update('name', e.target.value)}
                     placeholder="e.g. Chicken breast"
+                    enterKeyHint="next"
                     className="w-full bg-card border border-border rounded-xl px-4 py-3 text-foreground focus:outline-none focus:ring-2 focus:ring-primary/40"
-                    autoFocus
                   />
                 </div>
 
@@ -230,12 +231,13 @@ export default function Nutrition() {
       {/* Delete confirm */}
       <AnimatePresence>
         {deletingId && (
-          <div className="fixed inset-0 bg-black/50 z-50 flex items-end pb-20" onClick={() => setDeletingId(null)}>
+          <div className="fixed inset-0 bg-black/50 z-50 flex items-end" onClick={() => setDeletingId(null)}>
             <motion.div
               initial={{ y: 200 }}
               animate={{ y: 0 }}
               exit={{ y: 200 }}
-              className="bg-card w-full rounded-t-3xl p-6 pb-10"
+              className="bg-card w-full rounded-t-3xl p-6"
+              style={{ paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 24px)' }}
               onClick={e => e.stopPropagation()}
             >
               <h3 className="text-xl font-bold mb-4">Remove this entry?</h3>

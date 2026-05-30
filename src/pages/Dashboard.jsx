@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
-import { Droplets, Flame, Zap, Scale, Ruler, Trophy, Plus, ChevronRight } from 'lucide-react';
+import { Droplets, Flame, Zap, Scale, Trophy, Plus, ChevronRight, Footprints } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useApp } from '../lib/useAppStore';
 import ProgressRing from '../components/ui/ProgressRing';
@@ -20,6 +20,8 @@ export default function Dashboard() {
   const [weightInput, setWeightInput] = useState('');
   const [showHeightModal, setShowHeightModal] = useState(false);
   const [heightInput, setHeightInput] = useState('');
+  const [showStepsModal, setShowStepsModal] = useState(false);
+  const [stepsInput, setStepsInput] = useState('');
 
   // Last logged weight from any day (falls back to profile if never logged)
   const lastLoggedWeight = React.useMemo(() => {
@@ -200,6 +202,44 @@ export default function Dashboard() {
           </div>
         </motion.div>
 
+        {/* Steps card */}
+        <motion.div variants={itemVariants} className="bg-card rounded-2xl border border-border p-4 shadow-sm">
+          <div className="flex items-center justify-between mb-3">
+            <div className="flex items-center gap-2">
+              <div className="w-8 h-8 rounded-xl bg-green-100 dark:bg-green-900/30 flex items-center justify-center">
+                <Footprints size={16} className="text-green-500" />
+              </div>
+              <span className="text-sm font-semibold text-foreground">Steps Today</span>
+            </div>
+            <span className="text-xs text-muted-foreground bg-muted px-2 py-1 rounded-lg">Apple Health</span>
+          </div>
+          <div className="flex items-end justify-between mb-3">
+            <div>
+              <div className="text-3xl font-black text-foreground">
+                {todayLog?.steps ? todayLog.steps.toLocaleString() : '--'}
+              </div>
+              <p className="text-xs text-muted-foreground mt-0.5">Goal: 10,000 steps</p>
+            </div>
+            {todayLog?.steps > 0 && (
+              <div className="text-right">
+                <div className="text-sm font-bold text-green-500">{Math.round((todayLog.steps / 10000) * 100)}%</div>
+              </div>
+            )}
+          </div>
+          {todayLog?.steps > 0 && (
+            <div className="h-1.5 bg-muted rounded-full mb-3">
+              <div className="h-full bg-green-500 rounded-full transition-all duration-500" style={{ width: `${Math.min(100, (todayLog.steps / 10000) * 100)}%` }} />
+            </div>
+          )}
+          <p className="text-xs text-muted-foreground mb-2">Log steps from Apple Health or manually</p>
+          <button
+            onClick={() => setShowStepsModal(true)}
+            className="w-full py-2 bg-green-50 dark:bg-green-900/20 rounded-xl text-green-600 dark:text-green-400 text-xs font-semibold tap-scale"
+          >
+            Log Steps
+          </button>
+        </motion.div>
+
 
 
         {/* Recent workouts */}
@@ -241,70 +281,60 @@ export default function Dashboard() {
 
       {/* Weight Modal */}
       {showWeightModal && (
-        <div className="fixed inset-0 bg-black/50 z-50 flex items-end pb-20" onClick={() => setShowWeightModal(false)}>
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-end" onClick={() => setShowWeightModal(false)}>
           <motion.div
-            initial={{ y: 200 }}
-            animate={{ y: 0 }}
-            className="bg-card w-full rounded-t-3xl p-6 pb-10"
+            initial={{ y: 200 }} animate={{ y: 0 }}
+            className="bg-card w-full rounded-t-3xl p-6 pb-safe-bottom"
+            style={{ paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 24px)' }}
             onClick={e => e.stopPropagation()}
           >
             <h3 className="text-xl font-bold text-foreground mb-4">Log Weight</h3>
             <input
-              type="number"
-              inputMode="decimal"
-              value={weightInput}
-              onChange={e => setWeightInput(e.target.value)}
+              type="number" inputMode="decimal"
+              value={weightInput} onChange={e => setWeightInput(e.target.value)}
               placeholder="e.g. 75.5"
               className="w-full bg-muted rounded-xl px-4 py-3.5 text-foreground text-lg focus:outline-none"
-              autoFocus
             />
             <button
-              onClick={() => {
-                if (weightInput) {
-                  updateDailyLog({ weight: parseFloat(weightInput) });
-                  setShowWeightModal(false);
-                  setWeightInput('');
-                }
-              }}
+              onClick={() => { if (weightInput) { updateDailyLog({ weight: parseFloat(weightInput) }); setShowWeightModal(false); setWeightInput(''); } }}
               className="w-full mt-4 py-4 bg-primary text-primary-foreground rounded-xl font-bold text-lg tap-scale"
-            >
-              Save
-            </button>
+            >Save</button>
           </motion.div>
         </div>
       )}
 
-      {/* Height Modal */}
-      {showHeightModal && (
-        <div className="fixed inset-0 bg-black/50 z-50 flex items-end pb-20" onClick={() => setShowHeightModal(false)}>
+      {/* Steps Modal */}
+      {showStepsModal && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-end" onClick={() => setShowStepsModal(false)}>
           <motion.div
-            initial={{ y: 200 }}
-            animate={{ y: 0 }}
-            className="bg-card w-full rounded-t-3xl p-6 pb-10"
+            initial={{ y: 200 }} animate={{ y: 0 }}
+            className="bg-card w-full rounded-t-3xl p-6"
+            style={{ paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 24px)' }}
             onClick={e => e.stopPropagation()}
           >
-            <h3 className="text-xl font-bold text-foreground mb-4">Log Height</h3>
+            <div className="flex items-center gap-2 mb-1">
+              <Footprints size={20} className="text-green-500" />
+              <h3 className="text-xl font-bold text-foreground">Log Steps</h3>
+            </div>
+            <p className="text-sm text-muted-foreground mb-4">Enter today's step count from Apple Health or your device</p>
             <input
-              type="number"
-              inputMode="decimal"
-              value={heightInput}
-              onChange={e => setHeightInput(e.target.value)}
-              placeholder="e.g. 175"
+              type="number" inputMode="numeric"
+              value={stepsInput} onChange={e => setStepsInput(e.target.value)}
+              placeholder="e.g. 8500"
               className="w-full bg-muted rounded-xl px-4 py-3.5 text-foreground text-lg focus:outline-none"
-              autoFocus
             />
+            <div className="flex gap-2 mt-3">
+              {[5000, 8000, 10000].map(s => (
+                <button key={s} onClick={() => setStepsInput(String(s))}
+                  className="flex-1 py-2.5 bg-muted rounded-xl text-sm font-semibold text-muted-foreground tap-scale">
+                  {(s/1000).toFixed(0)}k
+                </button>
+              ))}
+            </div>
             <button
-              onClick={() => {
-                if (heightInput) {
-                  updateDailyLog({ height: parseFloat(heightInput) });
-                  setShowHeightModal(false);
-                  setHeightInput('');
-                }
-              }}
-              className="w-full mt-4 py-4 bg-teal-500 text-white rounded-xl font-bold text-lg tap-scale"
-            >
-              Save
-            </button>
+              onClick={() => { if (stepsInput) { updateDailyLog({ steps: parseInt(stepsInput) }); setShowStepsModal(false); setStepsInput(''); } }}
+              className="w-full mt-4 py-4 bg-green-500 text-white rounded-xl font-bold text-lg tap-scale"
+            >Save</button>
           </motion.div>
         </div>
       )}

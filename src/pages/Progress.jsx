@@ -295,6 +295,7 @@ export default function Progress() {
                   onFocus={e => e.target.select()}
                   placeholder="kg"
                   className="w-full bg-muted rounded-xl px-3 py-2 text-foreground text-sm focus:outline-none mb-2"
+                  enterKeyHint="done"
                 />
                 <button
                   onClick={() => { if (weightInput) { updateDailyLog({ weight: parseFloat(weightInput) }); setWeightInput(''); } }}
